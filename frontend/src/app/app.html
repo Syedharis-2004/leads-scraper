@@ -1,0 +1,65 @@
+<div class="flex h-screen overflow-hidden bg-ink-950">
+  <!-- Sidebar -->
+  <aside class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-ink-900 border-r border-ink-700 flex flex-col transition-transform duration-200"
+         [class.translate-x-0]="sidebarOpen()"
+         [class.-translate-x-full]="!sidebarOpen()"
+         [class.lg:translate-x-0]="true">
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-5 py-5 border-b border-ink-700">
+      <div class="w-9 h-9 rounded-lg bg-teal-500 flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <h1 class="text-sm font-bold text-white truncate">AI Lead Generator</h1>
+        <p class="text-xs text-ink-400 truncate">Powered by ScrapeGraphAI</p>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      @for (item of navItems; track item.path) {
+        <a [routerLink]="['/' + item.path]"
+           routerLinkActive="nav-link-active"
+           [routerLinkActiveOptions]="{ exact: item.path === '' }"
+           class="nav-link"
+           (click)="sidebarOpen.set(false)">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="item.icon"/>
+          </svg>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <!-- Footer -->
+    <div class="px-4 py-3 border-t border-ink-700">
+      <p class="text-xs text-ink-500">Local &amp; Private</p>
+      <p class="text-xs text-ink-500">No data leaves your machine</p>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay -->
+  @if (sidebarOpen()) {
+    <div class="fixed inset-0 bg-black/50 z-40 lg:hidden" (click)="sidebarOpen.set(false)"></div>
+  }
+
+  <!-- Main content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Top bar (mobile) -->
+    <header class="lg:hidden flex items-center gap-3 px-4 py-3 bg-ink-900 border-b border-ink-700">
+      <button class="btn-ghost !p-2" (click)="toggleSidebar()" aria-label="Toggle menu">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <span class="text-sm font-semibold text-white">AI Lead Generator</span>
+    </header>
+
+    <!-- Router outlet -->
+    <main class="flex-1 overflow-y-auto">
+      <router-outlet />
+    </main>
+  </div>
+</div>

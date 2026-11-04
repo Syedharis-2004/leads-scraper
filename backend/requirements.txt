@@ -1,0 +1,25 @@
+# === Core Backend ===
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.9.0
+
+# === ScrapeGraphAI (web scraping engine) ===
+scrapegraphai>=2.3.0
+
+# === Gemini / Google AI ===
+# langchain-google-genai provides the google_genai provider for ScrapeGraphAI
+langchain-google-genai>=2.1.0
+# google-generativeai for direct API key validation and prompt parsing
+google-generativeai>=0.8.0
+
+# === Secure API key storage (Windows Credential Manager) ===
+keyring>=25.0.0
+
+# === CSV file locking for concurrent-safe writes ===
+filelock>=3.16.0
+
+# === Testing ===
+pytest>=8.0.0
+pytest-mock>=3.14.0
+pytest-asyncio>=0.24.0
+httpx>=0.27.0

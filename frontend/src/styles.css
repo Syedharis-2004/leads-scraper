@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================
+   Global dark theme
+   ============================ */
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: #0b0f1c;
+  color: #eceef2;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #131829;
+}
+::-webkit-scrollbar-thumb {
+  background: #3d4660;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #525e7a;
+}
+
+/* ============================
+   Reusable component classes
+   ============================ */
+@layer components {
+  .card {
+    @apply bg-ink-900 border border-ink-700 rounded-xl p-5 shadow-lg;
+  }
+
+  .card-header {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  .card-title {
+    @apply text-lg font-semibold text-white;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed
+           inline-flex items-center gap-2;
+  }
+
+  .btn-primary {
+    @apply btn bg-teal-500 text-white hover:bg-teal-600;
+  }
+
+  .btn-secondary {
+    @apply btn bg-ink-700 text-ink-100 hover:bg-ink-600 border border-ink-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600/80 text-white hover:bg-red-600;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-300 hover:bg-ink-800 hover:text-white;
+  }
+
+  .input {
+    @apply w-full bg-ink-950 border border-ink-700 rounded-lg px-3 py-2 text-sm
+           text-white placeholder-ink-500
+           focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500
+           transition-colors;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-ink-300 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-teal-500/20 text-teal-300;
+  }
+
+  .badge-error {
+    @apply badge bg-red-500/20 text-red-300;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-500/20 text-amber-300;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-500/20 text-blue-300;
+  }
+
+  .badge-neutral {
+    @apply badge bg-ink-700 text-ink-300;
+  }
+
+  .table-container {
+    @apply overflow-x-auto rounded-xl border border-ink-700;
+  }
+
+  .data-table {
+    @apply w-full text-sm text-left;
+  }
+
+  .data-table thead {
+    @apply bg-ink-800 text-ink-300 uppercase text-xs;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 font-semibold whitespace-nowrap;
+  }
+
+  .data-table tbody tr {
+    @apply border-t border-ink-800 hover:bg-ink-800/50 transition-colors;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-ink-100;
+  }
+
+  .stat-card {
+    @apply card flex flex-col gap-2;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-white;
+  }
+
+  .stat-label {
+    @apply text-sm text-ink-400;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
+           text-ink-300 hover:bg-ink-800 hover:text-white transition-colors cursor-pointer;
+  }
+
+  .nav-link-active {
+    @apply bg-teal-500/15 text-teal-300 border-l-2 border-teal-500;
+  }
+}
+
+/* ============================
+   Utility animations
+   ============================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 1.5s ease-in-out infinite;
+}
+
+/* Progress bar */
+.progress-bar-bg {
+  @apply w-full bg-ink-700 rounded-full h-2.5 overflow-hidden;
+}
+
+.progress-bar-fill {
+  @apply bg-teal-500 h-full rounded-full transition-all duration-300;
+}
