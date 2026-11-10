@@ -35,6 +35,20 @@ BACKEND_PORT = 8765
 # ---------------------------------------------------------------------------
 KEYRING_SERVICE = "ai-lead-generator"
 KEYRING_USERNAME = "gemini_api_key"
+KEYRING_VERIFICATION_USERNAME = "verification_api_key"
+
+# ---------------------------------------------------------------------------
+# Verification Configuration
+# ---------------------------------------------------------------------------
+VERIFICATION_PROVIDERS: List[str] = [
+    "technical",      # Local DNS, MX, Disposable, SMTP heuristics (Free)
+    "hunter",         # Hunter.io API
+    "zerobounce",     # ZeroBounce API
+    "generic",        # Generic Custom HTTP Verification Endpoint
+]
+DEFAULT_VERIFICATION_PROVIDER = "technical"
+DNS_TIMEOUT_SECONDS = 5.0
+VERIFICATION_CONCURRENCY = 5
 
 # ---------------------------------------------------------------------------
 # Gemini models (Google AI Studio)
@@ -80,6 +94,10 @@ CSV_COLUMNS = [
     "source_url",
     "search_query",
     "generated_at",
+    "verification_status",
+    "verification_reason",
+    "verification_details",
+    "verified_at",
 ]
 
 
@@ -93,6 +111,12 @@ class AppConfig:
 
     def __init__(self) -> None:
         self.gemini_model: str = DEFAULT_GEMINI_MODEL
+        self.verification_provider: str = os.environ.get(
+            "VERIFICATION_PROVIDER", DEFAULT_VERIFICATION_PROVIDER
+        )
+        self.verification_api_url: str = os.environ.get(
+            "VERIFICATION_API_URL", ""
+        )
         self._load()
 
     # -- singleton helper ---------------------------------------------------
@@ -115,12 +139,22 @@ class AppConfig:
                 model = data.get("gemini_model")
                 if isinstance(model, str) and model in AVAILABLE_GEMINI_MODELS:
                     self.gemini_model = model
+                v_provider = data.get("verification_provider")
+                if isinstance(v_provider, str) and v_provider in VERIFICATION_PROVIDERS:
+                    self.verification_provider = v_provider
+                v_url = data.get("verification_api_url")
+                if isinstance(v_url, str):
+                    self.verification_api_url = v_url
             except (json.JSONDecodeError, OSError):
                 pass  # fall back to defaults
 
     def save(self) -> None:
         ensure_dirs()
-        payload = {"gemini_model": self.gemini_model}
+        payload = {
+            "gemini_model": self.gemini_model,
+            "verification_provider": self.verification_provider,
+            "verification_api_url": self.verification_api_url,
+        }
         # atomic write
         tmp = APP_CONFIG_PATH.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -131,6 +165,14 @@ class AppConfig:
         if model not in AVAILABLE_GEMINI_MODELS:
             raise ValueError(f"Unsupported model: {model}")
         self.gemini_model = model
+        self.save()
+
+    def set_verification_provider(self, provider: str, api_url: str = "") -> None:
+        if provider not in VERIFICATION_PROVIDERS:
+            raise ValueError(f"Unsupported verification provider: {provider}")
+        self.verification_provider = provider
+        if api_url is not None:
+            self.verification_api_url = api_url.strip()
         self.save()
 
 

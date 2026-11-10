@@ -26,6 +26,10 @@ class Lead(BaseModel):
     source_url: str = ""
     search_query: str = ""
     generated_at: str = ""
+    verification_status: str = ""  # VALID, INVALID, RISKY, UNKNOWN, or "" (Unverified)
+    verification_reason: str = ""
+    verification_details: str = ""
+    verified_at: str = ""
 
 
 class LeadListResponse(BaseModel):
@@ -119,6 +123,16 @@ class CancelResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
+class VerificationStatsResponse(BaseModel):
+    total: int = 0
+    verified: int = 0
+    unverified: int = 0
+    valid: int = 0
+    invalid: int = 0
+    risky: int = 0
+    unknown: int = 0
+
+
 class DashboardStats(BaseModel):
     total_leads: int = 0
     leads_today: int = 0
@@ -126,6 +140,72 @@ class DashboardStats(BaseModel):
     successful_searches: int = 0
     failed_searches: int = 0
     recent_leads: list[Lead] = Field(default_factory=list)
+    verification_stats: Optional[VerificationStatsResponse] = None
+
+
+# ---------------------------------------------------------------------------
+# Verification Schemas
+# ---------------------------------------------------------------------------
+class VerificationCheckDetails(BaseModel):
+    syntax_valid: bool = False
+    domain_exists: bool = False
+    has_mx: bool = False
+    mx_records: list[str] = Field(default_factory=list)
+    is_disposable: bool = False
+    is_catch_all: Optional[bool] = None
+    mailbox_confirmed: Optional[bool] = None
+    provider: str = "technical"
+    checked_at: str = ""
+
+
+class SingleVerificationResponse(BaseModel):
+    lead_id: str
+    email: str
+    status: str       # VALID, INVALID, RISKY, UNKNOWN
+    reason: str
+    details: VerificationCheckDetails
+    verified_at: str
+
+
+class BatchVerificationRequest(BaseModel):
+    lead_ids: Optional[list[str]] = Field(default=None, description="Specific lead IDs to verify")
+    verify_all_unverified: bool = Field(default=False, description="Verify all leads without verification status")
+    reverify_all: bool = Field(default=False, description="Re-verify all leads regardless of existing status")
+
+
+class BatchVerificationStartResponse(BaseModel):
+    job_id: str
+    total_leads: int
+    status: str = "started"
+
+
+class BatchVerificationStatusResponse(BaseModel):
+    job_id: str
+    total_leads: int = 0
+    processed_leads: int = 0
+    valid_count: int = 0
+    invalid_count: int = 0
+    risky_count: int = 0
+    unknown_count: int = 0
+    progress: float = 0.0
+    is_running: bool = False
+    is_completed: bool = False
+    is_cancelled: bool = False
+    error: str = ""
+    message: str = ""
+
+
+class VerificationSettingsRequest(BaseModel):
+    provider: str = Field(..., description="Provider name: technical, hunter, zerobounce, generic")
+    api_key: Optional[str] = Field(default=None, description="Optional API key for provider")
+    api_url: Optional[str] = Field(default=None, description="Optional custom endpoint URL for generic provider")
+
+
+class VerificationSettingsResponse(BaseModel):
+    provider: str
+    available_providers: list[str]
+    has_api_key: bool
+    api_url: str = ""
 
 
 class ActivityEntry(BaseModel):

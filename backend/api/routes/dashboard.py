@@ -4,11 +4,12 @@ Dashboard statistics route.
 
 from fastapi import APIRouter
 
-from models.schemas import DashboardStats, Lead
+from models.schemas import DashboardStats, Lead, VerificationStatsResponse
 from services.csv_service import (
     count_leads,
     count_leads_today,
     get_search_stats,
+    get_verification_stats,
     query_leads,
 )
 
@@ -21,6 +22,7 @@ def get_stats():
     total = count_leads()
     today = count_leads_today()
     total_searches, successful, failed = get_search_stats()
+    v_stats = get_verification_stats()
 
     # Recent leads (latest 10)
     recent, _ = query_leads(
@@ -37,4 +39,5 @@ def get_stats():
         successful_searches=successful,
         failed_searches=failed,
         recent_leads=[Lead(**lead) for lead in recent],
+        verification_stats=VerificationStatsResponse(**v_stats),
     )

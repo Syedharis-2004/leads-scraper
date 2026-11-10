@@ -189,7 +189,7 @@ def append_leads(
             # Write combined
             tmp_path = str(LEADS_CSV_PATH) + ".tmp"
             with open(tmp_path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
                 writer.writeheader()
                 for row in existing:
                     writer.writerow(_row_to_dict(row))
@@ -212,8 +212,7 @@ def delete_lead(lead_id: str) -> bool:
     with _get_lock():
         with open(LEADS_CSV_PATH, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            fieldnames = reader.fieldnames or CSV_COLUMNS
-            rows = list(reader)
+            rows = [_row_to_dict(row) for row in reader]
 
         remaining = [row for row in rows if row.get("lead_id") != lead_id]
         if len(remaining) == len(rows):
@@ -221,7 +220,7 @@ def delete_lead(lead_id: str) -> bool:
 
         tmp_path = str(LEADS_CSV_PATH) + ".tmp"
         with open(tmp_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
             writer.writeheader()
             for row in remaining:
                 writer.writerow(_row_to_dict(row))
@@ -233,12 +232,89 @@ def delete_lead(lead_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Updating
+# ---------------------------------------------------------------------------
+def update_lead(lead_id: str, updates: dict) -> dict | None:
+    """
+    Update a single lead record by ID.
+    Only updates specified keys without overwriting original unmentioned data.
+    Returns the updated lead dict, or None if not found.
+    """
+    init_csv()
+    updated_lead = None
+    with _get_lock():
+        with open(LEADS_CSV_PATH, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = [_row_to_dict(r) for r in reader]
+
+        for row in rows:
+            if row.get("lead_id") == lead_id:
+                for k, v in updates.items():
+                    if k in CSV_COLUMNS:
+                        row[k] = str(v if v is not None else "").strip()
+                updated_lead = dict(row)
+                break
+
+        if updated_lead is None:
+            return None
+
+        tmp_path = str(LEADS_CSV_PATH) + ".tmp"
+        with open(tmp_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(_row_to_dict(row))
+
+        os.replace(tmp_path, str(LEADS_CSV_PATH))
+
+    return updated_lead
+
+
+def batch_update_leads(updates_by_id: dict[str, dict]) -> int:
+    """
+    Update multiple leads in a single atomic CSV write.
+    updates_by_id: {lead_id: {field: value, ...}}
+    Returns the number of leads successfully updated.
+    """
+    init_csv()
+    if not updates_by_id:
+        return 0
+
+    updated_count = 0
+    with _get_lock():
+        with open(LEADS_CSV_PATH, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = [_row_to_dict(r) for r in reader]
+
+        for row in rows:
+            lid = row.get("lead_id")
+            if lid and lid in updates_by_id:
+                for k, v in updates_by_id[lid].items():
+                    if k in CSV_COLUMNS:
+                        row[k] = str(v if v is not None else "").strip()
+                updated_count += 1
+
+        tmp_path = str(LEADS_CSV_PATH) + ".tmp"
+        with open(tmp_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(_row_to_dict(row))
+
+        os.replace(tmp_path, str(LEADS_CSV_PATH))
+
+    logger.info(f"Batch updated {updated_count} leads")
+    return updated_count
+
+
+# ---------------------------------------------------------------------------
 # Querying
 # ---------------------------------------------------------------------------
 def query_leads(
     search: str = "",
     city: str = "",
     business_type: str = "",
+    verification_status: str = "",
     date_from: str = "",
     date_to: str = "",
     sort_by: str = "generated_at",
@@ -263,6 +339,14 @@ def query_leads(
     if business_type:
         bt_lower = business_type.lower()
         leads = [l for l in leads if bt_lower in l.get("business_type", "").lower()]
+    if verification_status:
+        v_status = verification_status.strip().upper()
+        if v_status == "UNVERIFIED":
+            leads = [l for l in leads if not l.get("verification_status")]
+        elif v_status == "VERIFIED":
+            leads = [l for l in leads if bool(l.get("verification_status"))]
+        else:
+            leads = [l for l in leads if l.get("verification_status", "").upper() == v_status]
     if date_from:
         leads = [l for l in leads if l.get("generated_at", "") >= date_from]
     if date_to:
@@ -288,14 +372,26 @@ def query_leads(
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
-def export_csv(search: str = "", city: str = "", business_type: str = "",
-               date_from: str = "", date_to: str = "") -> str:
+def export_csv(
+    search: str = "",
+    city: str = "",
+    business_type: str = "",
+    verification_status: str = "",
+    date_from: str = "",
+    date_to: str = "",
+) -> str:
     """Return CSV content as a string (optionally filtered)."""
     leads, _ = query_leads(
-        search=search, city=city, business_type=business_type,
-        date_from=date_from, date_to=date_to,
-        sort_by="generated_at", sort_order="desc",
-        page=1, page_size=10_000_000,  # effectively all
+        search=search,
+        city=city,
+        business_type=business_type,
+        verification_status=verification_status,
+        date_from=date_from,
+        date_to=date_to,
+        sort_by="generated_at",
+        sort_order="desc",
+        page=1,
+        page_size=10_000_000,  # effectively all
     )
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS)
@@ -305,17 +401,60 @@ def export_csv(search: str = "", city: str = "", business_type: str = "",
     return output.getvalue()
 
 
-def export_json(search: str = "", city: str = "", business_type: str = "",
-                date_from: str = "", date_to: str = "") -> str:
+def export_json(
+    search: str = "",
+    city: str = "",
+    business_type: str = "",
+    verification_status: str = "",
+    date_from: str = "",
+    date_to: str = "",
+) -> str:
     """Return JSON array of leads (optionally filtered)."""
     import json
     leads, _ = query_leads(
-        search=search, city=city, business_type=business_type,
-        date_from=date_from, date_to=date_to,
-        sort_by="generated_at", sort_order="desc",
-        page=1, page_size=10_000_000,
+        search=search,
+        city=city,
+        business_type=business_type,
+        verification_status=verification_status,
+        date_from=date_from,
+        date_to=date_to,
+        sort_by="generated_at",
+        sort_order="desc",
+        page=1,
+        page_size=10_000_000,
     )
     return json.dumps(leads, indent=2, ensure_ascii=False)
+
+
+def get_verification_stats() -> dict:
+    """Return counts of leads grouped by verification status."""
+    leads = read_all_leads()
+    stats = {
+        "total": len(leads),
+        "verified": 0,
+        "unverified": 0,
+        "valid": 0,
+        "invalid": 0,
+        "risky": 0,
+        "unknown": 0,
+    }
+    for lead in leads:
+        status = (lead.get("verification_status") or "").upper().strip()
+        if not status:
+            stats["unverified"] += 1
+        else:
+            stats["verified"] += 1
+            if status == "VALID":
+                stats["valid"] += 1
+            elif status == "INVALID":
+                stats["invalid"] += 1
+            elif status == "RISKY":
+                stats["risky"] += 1
+            elif status == "UNKNOWN":
+                stats["unknown"] += 1
+            else:
+                stats["unknown"] += 1
+    return stats
 
 
 # ---------------------------------------------------------------------------

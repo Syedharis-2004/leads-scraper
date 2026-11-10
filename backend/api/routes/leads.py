@@ -26,6 +26,7 @@ def list_leads(
     search: str = Query("", description="Search by company name"),
     city: str = Query("", description="Filter by city"),
     business_type: str = Query("", description="Filter by business type"),
+    verification_status: str = Query("", description="Filter by status: VALID, INVALID, RISKY, UNKNOWN, UNVERIFIED"),
     date_from: str = Query("", description="Date from (YYYY-MM-DD)"),
     date_to: str = Query("", description="Date to (YYYY-MM-DD)"),
     sort_by: str = Query("generated_at", description="Sort field"),
@@ -38,6 +39,7 @@ def list_leads(
         search=search,
         city=city,
         business_type=business_type,
+        verification_status=verification_status,
         date_from=date_from,
         date_to=date_to,
         sort_by=sort_by,
@@ -90,6 +92,7 @@ def export_csv(
     search: str = Query(""),
     city: str = Query(""),
     business_type: str = Query(""),
+    verification_status: str = Query(""),
     date_from: str = Query(""),
     date_to: str = Query(""),
 ):
@@ -97,12 +100,20 @@ def export_csv(
     from services.csv_service import export_csv as do_export
 
     csv_content = do_export(
-        search=search, city=city, business_type=business_type,
-        date_from=date_from, date_to=date_to,
+        search=search,
+        city=city,
+        business_type=business_type,
+        verification_status=verification_status,
+        date_from=date_from,
+        date_to=date_to,
     )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"leads_export_{timestamp}.csv"
+    if verification_status:
+        filename = f"leads_{verification_status.lower()}_{timestamp}.csv"
+
     headers = {
-        "Content-Disposition": f'attachment; filename="leads_export_{timestamp}.csv"'
+        "Content-Disposition": f'attachment; filename="{filename}"'
     }
     return StreamingResponse(
         io.BytesIO(csv_content.encode("utf-8-sig")),
@@ -116,6 +127,7 @@ def export_json(
     search: str = Query(""),
     city: str = Query(""),
     business_type: str = Query(""),
+    verification_status: str = Query(""),
     date_from: str = Query(""),
     date_to: str = Query(""),
 ):
@@ -123,12 +135,20 @@ def export_json(
     from services.csv_service import export_json as do_export
 
     json_content = do_export(
-        search=search, city=city, business_type=business_type,
-        date_from=date_from, date_to=date_to,
+        search=search,
+        city=city,
+        business_type=business_type,
+        verification_status=verification_status,
+        date_from=date_from,
+        date_to=date_to,
     )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"leads_export_{timestamp}.json"
+    if verification_status:
+        filename = f"leads_{verification_status.lower()}_{timestamp}.json"
+
     headers = {
-        "Content-Disposition": f'attachment; filename="leads_export_{timestamp}.json"'
+        "Content-Disposition": f'attachment; filename="{filename}"'
     }
     return StreamingResponse(
         io.BytesIO(json_content.encode("utf-8")),

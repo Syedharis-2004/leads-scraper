@@ -16,6 +16,64 @@ export interface Lead {
   source_url: string;
   search_query: string;
   generated_at: string;
+  verification_status?: string; // VALID, INVALID, RISKY, UNKNOWN, or empty
+  verification_reason?: string;
+  verification_details?: string;
+  verified_at?: string;
+}
+
+export interface VerificationStats {
+  total: number;
+  verified: number;
+  unverified: number;
+  valid: number;
+  invalid: number;
+  risky: number;
+  unknown: number;
+}
+
+export interface VerificationCheckDetails {
+  syntax_valid: boolean;
+  domain_exists: boolean;
+  has_mx: boolean;
+  mx_records: string[];
+  is_disposable: boolean;
+  is_catch_all: boolean | null;
+  mailbox_confirmed: boolean | null;
+  provider: string;
+  checked_at: string;
+}
+
+export interface SingleVerificationResponse {
+  lead_id: string;
+  email: string;
+  status: 'VALID' | 'INVALID' | 'RISKY' | 'UNKNOWN';
+  reason: string;
+  details: VerificationCheckDetails;
+  verified_at: string;
+}
+
+export interface BatchVerificationStatus {
+  job_id: string;
+  total_leads: number;
+  processed_leads: number;
+  valid_count: number;
+  invalid_count: number;
+  risky_count: number;
+  unknown_count: number;
+  progress: number;
+  is_running: boolean;
+  is_completed: boolean;
+  is_cancelled: boolean;
+  error: string;
+  message: string;
+}
+
+export interface VerificationSettings {
+  provider: string;
+  available_providers: string[];
+  has_api_key: boolean;
+  api_url: string;
 }
 
 export interface LeadListResponse {
@@ -33,6 +91,7 @@ export interface DashboardStats {
   successful_searches: number;
   failed_searches: number;
   recent_leads: Lead[];
+  verification_stats?: VerificationStats;
 }
 
 export interface SearchConfig {

@@ -27,7 +27,8 @@ def test_health(app_client):
 # ---------------------------------------------------------------------------
 # Settings / API key
 # ---------------------------------------------------------------------------
-def test_key_status_no_key(app_client):
+def test_key_status_no_key(app_client, monkeypatch):
+    monkeypatch.setattr("api.routes.settings.has_api_key", lambda: False)
     res = app_client.get("/api/settings/key")
     assert res.status_code == 200
     data = res.json()
@@ -72,11 +73,11 @@ def test_remove_key(app_client, monkeypatch):
 
 
 def test_set_model(app_client):
-    res = app_client.put("/api/settings/model", json={"model": "gemini-2.5-flash"})
+    res = app_client.put("/api/settings/model", json={"model": "gemini-3.5-flash-lite"})
     assert res.status_code == 200
 
     res = app_client.get("/api/settings/models")
-    assert res.json()["selected"] == "gemini-2.5-flash"
+    assert res.json()["selected"] == "gemini-3.5-flash-lite"
 
 
 def test_set_invalid_model(app_client):

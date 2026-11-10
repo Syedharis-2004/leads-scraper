@@ -64,9 +64,9 @@ def test_validate_valid_key(temp_data_dir):
     mock_genai = MockGenAI(response_text="OK")
     with patch("services.gemini_service.get_api_key", return_value="fake-key"):
         with patch("services.gemini_service._import_genai", return_value=mock_genai):
-            result = validate_api_key(api_key="fake-key", model="gemini-2.0-flash")
+            result = validate_api_key(api_key="fake-key", model="gemini-3.5-flash")
     assert result.valid is True
-    assert result.model == "gemini-2.0-flash"
+    assert result.model == "gemini-3.5-flash"
     mock_genai.models.generate_content.assert_called_once()
 
 

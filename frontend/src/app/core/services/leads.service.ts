@@ -7,6 +7,7 @@ export interface LeadQuery {
   search?: string;
   city?: string;
   business_type?: string;
+  verification_status?: string;
   date_from?: string;
   date_to?: string;
   sort_by?: string;

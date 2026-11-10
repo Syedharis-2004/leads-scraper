@@ -13,7 +13,13 @@ import json
 import os
 from typing import Optional
 
-from config.settings import APP_CONFIG_PATH, KEYRING_SERVICE, KEYRING_USERNAME, ensure_dirs
+from config.settings import (
+    APP_CONFIG_PATH,
+    KEYRING_SERVICE,
+    KEYRING_USERNAME,
+    KEYRING_VERIFICATION_USERNAME,
+    ensure_dirs,
+)
 from utils.logging_config import logger
 
 try:
@@ -51,11 +57,15 @@ def save_api_key(api_key: str) -> None:
             return
         except Exception as exc:
             logger.warning(f"keyring save failed ({exc}); using fallback file")
-    _save_fallback(api_key)
+    _save_fallback_entry("gemini", api_key)
 
 
 def get_api_key() -> Optional[str]:
     """Retrieve the stored API key, or None if not set."""
+    # Check env first
+    env_key = os.environ.get("GEMINI_API_KEY")
+    if env_key:
+        return env_key.strip()
     if _KEYRING_AVAILABLE:
         try:
             key = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
@@ -63,7 +73,7 @@ def get_api_key() -> Optional[str]:
                 return key
         except Exception as exc:
             logger.warning(f"keyring read failed ({exc})")
-    return _load_fallback()
+    return _load_fallback_entry("gemini")
 
 
 def update_api_key(api_key: str) -> None:
@@ -82,10 +92,65 @@ def remove_api_key() -> bool:
             pass  # nothing to delete
         except Exception as exc:
             logger.warning(f"keyring delete failed ({exc})")
-    if _fallback_exists():
-        _delete_fallback()
+    if _delete_fallback_entry("gemini"):
         removed = True
     logger.info("API key removed" if removed else "No API key to remove")
+    return removed
+
+
+# ---------------------------------------------------------------------------
+# Verification API Key
+# ---------------------------------------------------------------------------
+
+def has_verification_api_key() -> bool:
+    """Return True if a 3rd-party verification API key is stored or in env."""
+    return bool(get_verification_api_key())
+
+
+def save_verification_api_key(api_key: str) -> None:
+    """Persist third-party email verification API key securely."""
+    api_key = api_key.strip()
+    if not api_key:
+        raise ValueError("Verification API key cannot be empty")
+    if _KEYRING_AVAILABLE:
+        try:
+            keyring.set_password(KEYRING_SERVICE, KEYRING_VERIFICATION_USERNAME, api_key)
+            logger.info("Verification API key saved to Windows Credential Manager")
+            return
+        except Exception as exc:
+            logger.warning(f"keyring save failed ({exc}); using fallback file")
+    _save_fallback_entry("verification", api_key)
+
+
+def get_verification_api_key() -> Optional[str]:
+    """Retrieve stored verification API key, or None if not set."""
+    env_key = os.environ.get("VERIFICATION_API_KEY")
+    if env_key:
+        return env_key.strip()
+    if _KEYRING_AVAILABLE:
+        try:
+            key = keyring.get_password(KEYRING_SERVICE, KEYRING_VERIFICATION_USERNAME)
+            if key:
+                return key
+        except Exception as exc:
+            logger.warning(f"keyring read failed for verification ({exc})")
+    return _load_fallback_entry("verification")
+
+
+def remove_verification_api_key() -> bool:
+    """Delete the stored verification API key."""
+    removed = False
+    if _KEYRING_AVAILABLE:
+        try:
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_VERIFICATION_USERNAME)
+            removed = True
+        except keyring.errors.PasswordDeleteError:
+            pass
+        except Exception as exc:
+            logger.warning(f"keyring delete failed for verification ({exc})")
+    if _delete_fallback_entry("verification"):
+        removed = True
+    logger.info("Verification API key removed" if removed else "No verification API key to remove")
     return removed
 
 
@@ -97,21 +162,61 @@ def _fallback_exists() -> bool:
     return _FALLBACK_FILE.exists()
 
 
-def _save_fallback(api_key: str) -> None:
+def _read_fallback_data() -> dict:
+    if not _fallback_exists():
+        return {}
+    try:
+        return json.loads(_FALLBACK_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _write_fallback_data(data: dict) -> None:
     ensure_dirs()
-    # On Windows we can use DPAPI via ctypes for per-user encryption.
+    _FALLBACK_FILE.write_text(json.dumps(data), encoding="utf-8")
+
+
+def _save_fallback_entry(key_type: str, api_key: str) -> None:
     encrypted = _dpapi_encrypt(api_key)
-    _FALLBACK_FILE.write_text(json.dumps({"k": encrypted}), encoding="utf-8")
+    data = _read_fallback_data()
+    prop = "k" if key_type == "gemini" else "vk"
+    data[prop] = encrypted
+    _write_fallback_data(data)
+
+
+def _load_fallback_entry(key_type: str) -> Optional[str]:
+    data = _read_fallback_data()
+    prop = "k" if key_type == "gemini" else "vk"
+    encrypted = data.get(prop)
+    if not encrypted:
+        return None
+    try:
+        return _dpapi_decrypt(encrypted)
+    except Exception:
+        return None
+
+
+def _delete_fallback_entry(key_type: str) -> bool:
+    if not _fallback_exists():
+        return False
+    data = _read_fallback_data()
+    prop = "k" if key_type == "gemini" else "vk"
+    if prop in data:
+        del data[prop]
+        if not data:
+            _delete_fallback()
+        else:
+            _write_fallback_data(data)
+        return True
+    return False
+
+
+def _save_fallback(api_key: str) -> None:
+    _save_fallback_entry("gemini", api_key)
 
 
 def _load_fallback() -> Optional[str]:
-    if not _fallback_exists():
-        return None
-    try:
-        data = json.loads(_FALLBACK_FILE.read_text(encoding="utf-8"))
-        return _dpapi_decrypt(data.get("k", ""))
-    except Exception:
-        return None
+    return _load_fallback_entry("gemini")
 
 
 def _delete_fallback() -> None:

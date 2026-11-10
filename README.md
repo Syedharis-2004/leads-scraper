@@ -8,12 +8,15 @@ A local-first AI Lead Generation Dashboard that uses **ScrapeGraphAI** for web s
 - **Gemini-powered prompt understanding** — converts your prompt into a structured search configuration
 - **Business discovery** — finds relevant websites using DuckDuckGo search
 - **ScrapeGraphAI extraction** — uses AI to extract structured data from each website
-- **Persistent CSV storage** — all leads saved to `data/leads.csv`, survives restarts
+- **Lead Verification Module** — validates email syntax, DNS domain records, MX exchange servers, disposable domains, and deliverability
+- **Configurable Verification Providers** — local technical mode (free, no paid API needed), Hunter.io, ZeroBounce, or custom HTTP API
+- **Batch & Individual Verification** — verify single leads, multi-selected leads, or entire lead sets in the background
+- **Persistent CSV storage** — all leads and verification statuses saved to `data/leads.csv`, survives restarts
 - **Duplicate detection** — prevents the same business from being added twice
 - **Dark theme dashboard** — modern SaaS-style UI with teal accents
-- **BYOK (Bring Your Own Key)** — your Google AI Studio API key, stored securely
-- **Progress tracking** — real-time updates while scraping, with cancellation support
-- **Lead management** — search, filter, sort, paginate, export (CSV/JSON), delete
+- **BYOK (Bring Your Own Key)** — your Google AI Studio and verification provider API keys, stored securely
+- **Progress tracking** — real-time updates while scraping and verifying leads, with cancellation support
+- **Lead management** — search, filter by verification status, sort, paginate, export verified leads separately (CSV/JSON), delete
 - **Activity logs** — view application and API error logs with level filtering
 - **Windows batch launchers** — double-click to set up, start, and stop
 
@@ -120,14 +123,45 @@ Progress is displayed in real-time with stage indicators, website counts, and le
 
 View, search, filter, and manage all generated leads:
 
+- **Verification Status Badges** — color-coded deliverability indicators (`VALID`, `RISKY`, `INVALID`, `UNKNOWN`, `Unverified`) with diagnostic reasons on hover
+- **Individual Verification** — one-click Verify / Re-verify button on each lead row
+- **Multi-Select Bulk Verification** — select specific rows with checkboxes and verify in batch
+- **Verify Unverified** — one-click bulk verification for all unverified leads
+- **Live Background Progress** — watch progress bar, processed counts, and status breakdown in real-time
+- **Verification Status Filters** — filter by `Valid`, `Risky`, `Invalid`, `Unknown`, or `Unverified`
+- **Separate Verified Exports** — export only verified leads or valid leads directly to CSV/JSON
 - **Search** by company name
 - **Filter** by city or business type
-- **Sort** by generated date, company name, city, or business type
+- **Sort** by generated date, company name, city, business type, or verification status
 - **Copy** email addresses with one click
 - **Open** website links in a new tab
 - **Delete** individual leads
 - **Export** all or filtered leads as CSV or JSON
 - **Paginate** through large datasets
+
+### Lead Verification Module & Rules
+
+The application includes an email verification engine implementing multiple checks:
+
+1. **Email Syntax Validation** — RFC 5322 compliance check (length, format, prohibited characters).
+2. **Domain DNS Validation** — confirms domain existence via DNS A / AAAA resolution.
+3. **MX Record Verification** — queries Mail Exchange (MX) records and prioritizes mail hosts.
+4. **Disposable Email Detection** — identifies temporary and disposable email providers from a database of 500+ domains.
+5. **Catch-All & Mailbox Checks** — identifies catch-all servers and confirms mailbox deliverability via configured providers.
+
+#### Verification Statuses:
+- `VALID` — Email is confirmed deliverable by a verification provider.
+- `RISKY` — Domain and MX records are valid, but individual mailbox existence is unconfirmed without an external provider, or the server is configured as catch-all, or the domain is temporary/disposable.
+- `INVALID` — Syntax is invalid, the domain does not exist (NXDOMAIN), or no MX records exist.
+- `UNKNOWN` — DNS timed out, provider rate-limited, or server returned an inconclusive response.
+
+> **Important Rule**: An existing MX record proves only that a mail server exists, not that a specific recipient mailbox exists. The application never marks an email as `VALID` based solely on MX presence, and never sends actual emails.
+
+#### Configurable Verification Providers:
+- **Technical (Default, Free)**: Built-in local DNS, MX, syntax, and disposable checks. No paid API key required.
+- **Hunter.io**: Integrates with Hunter's Email Verifier API. Set API key in settings or `VERIFICATION_API_KEY`.
+- **ZeroBounce**: Integrates with ZeroBounce's v2 Validation API. Set API key in settings or `VERIFICATION_API_KEY`.
+- **Custom / Generic**: Forwards verification requests to a custom HTTP endpoint or webhook.
 
 ### API Settings Page
 

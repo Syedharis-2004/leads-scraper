@@ -4,17 +4,34 @@ API key / model settings routes.
 
 from fastapi import APIRouter
 
-from config.settings import AVAILABLE_GEMINI_MODELS, DEFAULT_GEMINI_MODEL, AppConfig
+from config.settings import (
+    AVAILABLE_GEMINI_MODELS,
+    DEFAULT_GEMINI_MODEL,
+    DEFAULT_VERIFICATION_PROVIDER,
+    VERIFICATION_PROVIDERS,
+    AppConfig,
+)
 from models.schemas import (
     ApiKeyRequest,
     ApiKeyStatusResponse,
     ApiKeyTestResponse,
-    ModelUpdateRequest,
     MessageResponse,
+    ModelUpdateRequest,
+    VerificationSettingsRequest,
+    VerificationSettingsResponse,
 )
 from services.gemini_service import validate_api_key
 from utils.logging_config import logger
-from utils.secure_storage import get_api_key, has_api_key, remove_api_key, save_api_key
+from utils.secure_storage import (
+    get_api_key,
+    get_verification_api_key,
+    has_api_key,
+    has_verification_api_key,
+    remove_api_key,
+    remove_verification_api_key,
+    save_api_key,
+    save_verification_api_key,
+)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -126,3 +143,52 @@ def get_available_models():
         "selected": config.gemini_model,
         "default": DEFAULT_GEMINI_MODEL,
     }
+
+
+# ---------------------------------------------------------------------------
+# Verification settings
+# ---------------------------------------------------------------------------
+@router.get("/verification", response_model=VerificationSettingsResponse)
+def get_verification_settings():
+    """Return current verification provider configuration."""
+    config = AppConfig.get()
+    return VerificationSettingsResponse(
+        provider=config.verification_provider,
+        available_providers=VERIFICATION_PROVIDERS,
+        has_api_key=has_verification_api_key(),
+        api_url=config.verification_api_url or "",
+    )
+
+
+@router.post("/verification", response_model=MessageResponse)
+def update_verification_settings(req: VerificationSettingsRequest):
+    """Update verification provider, endpoint URL, and optional API key."""
+    if req.provider not in VERIFICATION_PROVIDERS:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail=f"Provider '{req.provider}' is not supported. "
+                   f"Available: {', '.join(VERIFICATION_PROVIDERS)}",
+        )
+    config = AppConfig.get()
+    config.set_verification_provider(req.provider, api_url=req.api_url or "")
+
+    if req.api_key is not None:
+        key_str = req.api_key.strip()
+        if key_str:
+            save_verification_api_key(key_str)
+            logger.info("Verification API key updated")
+        else:
+            remove_verification_api_key()
+
+    logger.info(f"Verification provider set to {req.provider}")
+    return MessageResponse(message=f"Verification provider set to {req.provider}")
+
+
+@router.delete("/verification/key", response_model=MessageResponse)
+def delete_verification_key():
+    """Remove stored verification API key."""
+    removed = remove_verification_api_key()
+    return MessageResponse(
+        message="Verification API key removed" if removed else "No verification API key to remove"
+    )

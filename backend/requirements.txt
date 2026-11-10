@@ -18,6 +18,9 @@ keyring>=25.0.0
 # === CSV file locking for concurrent-safe writes ===
 filelock>=3.16.0
 
+# === DNS resolution for email verification ===
+dnspython>=2.6.0
+
 # === Testing ===
 pytest>=8.0.0
 pytest-mock>=3.14.0

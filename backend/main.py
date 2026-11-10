@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.routes import dashboard, generation, leads, logs, settings
+from api.routes import dashboard, generation, leads, logs, settings, verification
 from config.settings import BACKEND_HOST, BACKEND_PORT, FRONTEND_DIST_DIR, ensure_dirs
 from utils.logging_config import setup_logging, logger
 
@@ -67,6 +67,7 @@ app.include_router(generation.router)
 app.include_router(leads.router)
 app.include_router(dashboard.router)
 app.include_router(logs.router)
+app.include_router(verification.router)
 
 
 # ---------------------------------------------------------------------------
